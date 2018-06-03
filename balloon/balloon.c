@@ -40,7 +40,12 @@ void balloon (unsigned char *input, unsigned char *output, int32_t len, int64_t 
 int bitstream_init (struct bitstream *b) {
   SHA256_Init(&b->c);
   b->initialized = false;
+#if   OPENSSL_VERSION_NUMBER >= 0x10100000L
+  b->ctx = EVP_CIPHER_CTX_new();
+  EVP_CIPHER_CTX_init(b->ctx);
+#else
   EVP_CIPHER_CTX_init (&b->ctx);
+#endif
   b->zeros = malloc (BITSTREAM_BUF_SIZE * sizeof (uint8_t));
   memset (b->zeros, 0, BITSTREAM_BUF_SIZE);
 }
@@ -48,8 +53,14 @@ int bitstream_init (struct bitstream *b) {
 int bitstream_free (struct bitstream *b) {
   uint8_t out[AES_BLOCK_SIZE];
   int outl;
+#if   OPENSSL_VERSION_NUMBER >= 0x10100000L
+  EVP_EncryptFinal (b->ctx, out, &outl);
+  EVP_CIPHER_CTX_cleanup (b->ctx);
+  EVP_CIPHER_CTX_free(b->ctx);
+#else
   EVP_EncryptFinal (&b->ctx, out, &outl);
   EVP_CIPHER_CTX_cleanup (&b->ctx);
+#endif
   free (b->zeros);
 }
 
@@ -62,14 +73,23 @@ int bitstream_seed_finalize (struct bitstream *b) {
   SHA256_Final (key_bytes, &b->c);
   uint8_t iv[AES_BLOCK_SIZE];
   memset (iv, 0, AES_BLOCK_SIZE);
+#if   OPENSSL_VERSION_NUMBER >= 0x10100000L
+  EVP_CIPHER_CTX_set_padding (b->ctx, 1);
+  EVP_EncryptInit (b->ctx, EVP_aes_128_ctr (), key_bytes, iv);
+#else
   EVP_CIPHER_CTX_set_padding (&b->ctx, 1);
   EVP_EncryptInit (&b->ctx, EVP_aes_128_ctr (), key_bytes, iv);
+#endif
   b->initialized = true;
 }
 
 static int encrypt_partial (struct bitstream *b, void *outp, int to_encrypt) {
   int encl;
+#if   OPENSSL_VERSION_NUMBER >= 0x10100000L
+  EVP_EncryptUpdate (b->ctx, outp, &encl, b->zeros, to_encrypt);
+#else
   EVP_EncryptUpdate (&b->ctx, outp, &encl, b->zeros, to_encrypt);
+#endif
 }
 
 int bitstream_fill_buffer (struct bitstream *b, void *out, size_t outlen) {
@@ -163,8 +183,8 @@ int hash_state_fill (struct hash_state *s, const uint8_t salt[SALT_LEN], const u
 int hash_state_mix (struct hash_state *s, int32_t mixrounds) {
   int32_t rounds;
   uint8_t buf[8];
+  uint64_t neighbor;
   for (rounds=0; rounds < mixrounds; rounds++) {
-   uint64_t neighbor;
    for (size_t i = 0; i < s->n_blocks; i++) {
     uint8_t *cur_block = block_index (s, i);
     const size_t n_blocks_to_hash = 3;

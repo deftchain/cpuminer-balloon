@@ -24,7 +24,11 @@ struct bitstream {
   bool initialized;
   uint8_t *zeros;
   SHA256_CTX c;
+#if   OPENSSL_VERSION_NUMBER >= 0x10100000L
+  EVP_CIPHER_CTX* ctx;
+#else
   EVP_CIPHER_CTX ctx;
+#endif
 };
 
 struct hash_state;
