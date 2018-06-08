@@ -55,7 +55,6 @@ int bitstream_free (struct bitstream *b) {
   int outl;
 #if   OPENSSL_VERSION_NUMBER >= 0x10100000L
   EVP_EncryptFinal (b->ctx, out, &outl);
-  EVP_CIPHER_CTX_cleanup (b->ctx);
   EVP_CIPHER_CTX_free(b->ctx);
 #else
   EVP_EncryptFinal (&b->ctx, out, &outl);
