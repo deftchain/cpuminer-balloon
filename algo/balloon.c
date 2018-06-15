@@ -24,7 +24,7 @@ int scanhash_balloon(int thr_id, struct work *work, uint32_t max_nonce, uint64_t
 
 	do {
 		be32enc(&endiandata[19], n);
-                balloon_128((unsigned char *)endiandata, (unsigned char *)hash32);
+                balloon((unsigned char *)endiandata, (unsigned char *)hash32);
 		if (hash32[7] < Htarg && fulltest(hash32, ptarget)) {
 			work_set_target_ratio(work, hash32);
 			*hashes_done = n - first_nonce + 1;
